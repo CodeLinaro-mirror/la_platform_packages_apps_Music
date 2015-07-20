@@ -1476,7 +1476,7 @@ public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
             if ((pos >= 0) && (mDuration > 0)) {
                 mCurrentTime.setText(MusicUtils
                         .makeTimeString(this, pos / 1000));
-                int progress = (int) (1000 * pos / mDuration);
+                int progress = (int) (mProgress.getMax() * pos / mDuration);
                 mProgress.setProgress(progress);
                 if (mService.isComplete()) {
                     mCurrentTime.setText(MusicUtils.makeTimeString(this,
