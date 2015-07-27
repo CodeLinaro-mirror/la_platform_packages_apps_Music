@@ -94,6 +94,8 @@ import java.util.Formatter;
 import java.util.HashMap;
 import java.util.Locale;
 
+import com.codeaurora.music.custom.MusicPanelLayout.BoardState;
+
 public class MusicUtils {
 
     private static final String TAG = "MusicUtils";
@@ -1462,6 +1464,11 @@ public class MusicUtils {
             return;
         }
         try {
+            String path = sService.getPath();
+            if (path == null) {
+                ((MediaPlaybackActivity) a).getSlidingPanelLayout().setHookState(BoardState.HIDDEN);
+                return;
+            }
             boolean withtabs = false;
             Intent intent = a.getIntent();
             if (intent != null) {
