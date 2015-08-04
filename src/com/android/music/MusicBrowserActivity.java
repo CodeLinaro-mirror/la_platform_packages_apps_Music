@@ -137,7 +137,7 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
                         showScreen(position);
                         mNavigationAdapter.setClickPosition(position);
                         mDrawerListView.invalidateViews();
-                        mDrawerLayout.closeDrawer(Gravity.LEFT);
+                        mDrawerLayout.closeDrawer(Gravity.START);
                     }
                 });
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
@@ -147,7 +147,7 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
             @Override
             public void onClick(View v) {
                 MusicUtils.startSoundEffectActivity(MusicBrowserActivity.this);
-                mDrawerLayout.closeDrawer(Gravity.LEFT);
+                mDrawerLayout.closeDrawer(Gravity.START);
             }
         });
 
@@ -171,7 +171,7 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
 
             @Override
             public void onClick(View v) {
-                mDrawerLayout.openDrawer(Gravity.LEFT);
+                mDrawerLayout.openDrawer(Gravity.START);
             }
         });
         if(mMimeType != null && mMimeType.equalsIgnoreCase("vnd.android.cursor.dir/playlist"))
