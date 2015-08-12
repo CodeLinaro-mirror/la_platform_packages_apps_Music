@@ -1038,7 +1038,7 @@ public class TrackBrowserFragment extends Fragment implements
         }
 
         case REMOVE:
-            removePlaylistItem(mSelectedPosition);
+            removePlaylistItem(position);
             return true;
 
         case SEARCH:
@@ -1663,7 +1663,7 @@ public class TrackBrowserFragment extends Fragment implements
         private IMediaPlaybackService mService;
     }
 
-    static class TrackListAdapter extends android.widget.SimpleCursorAdapter
+    class TrackListAdapter extends android.widget.SimpleCursorAdapter
             implements android.widget.SectionIndexer {
         boolean mIsNowPlaying;
         boolean mDisableNowPlayingIndicator;
@@ -1688,7 +1688,7 @@ public class TrackBrowserFragment extends Fragment implements
         private boolean mConstraintIsValid = false;
         HashMap<View, Integer> mPositionMap;
 
-        static class ViewHolder {
+        class ViewHolder {
             TextView line1;
             TextView line2;
             TextView duration;
@@ -1910,6 +1910,10 @@ public class TrackBrowserFragment extends Fragment implements
                     PopupMenu popup = new PopupMenu(mFragment.getActivity(), iv);
                     popup.getMenu().add(0, PLAY_SELECTION, 0,
                             R.string.play_selection);
+                    if (mEditMode && !("nowplaying".equals(mPlaylist))) {
+                        popup.getMenu().add(0, REMOVE, 0,
+                                R.string.remove_from_playlist);
+                    }
                     SubMenu sub = popup.getMenu().addSubMenu(0,
                             ADD_TO_PLAYLIST, 0, R.string.add_to_playlist);
                     MusicUtils.makePlaylistMenu(mFragment.getActivity(), sub);
