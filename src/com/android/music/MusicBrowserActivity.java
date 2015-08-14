@@ -75,6 +75,10 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
     public static boolean mIsparentActivityFInishing;
     private ArrayList<Fragment> mMusicFragments;
     private int activeTab;
+    private static final long RECENTLY_ADDED_PLAYLIST = -1;
+    private static final long ALL_SONGS_PLAYLIST = -2;
+    private static final long PODCASTS_PLAYLIST = -3;
+    private static final long DEFAULT_PLAYLIST = -5;
     //List item height - list item padding ==> 48 - 3 = 45
     //Number of menu items in Non-CMCC mode are 4 (doesn't includes "Folder")
     private static final int LIST_HEIGHT_NON_CMCC_MODE = 45 * 4;
@@ -83,7 +87,8 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
     static MediaPlaybackActivity mActivityInstance;
     NavigationDrawerListAdapter mNavigationAdapter;
     String mArtistID, mAlbumID;
-    String mMimeType;
+    String mIntentAction;
+    long mPlaylistId = DEFAULT_PLAYLIST;
 
     public MusicBrowserActivity() {
     }
@@ -99,7 +104,15 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         setContentView(R.layout.music_browser);
         mActivityInstance = this;
-        mMimeType = getIntent().getType();
+        mIntentAction = getIntent().getAction();
+        Bundle bundle = getIntent().getExtras();
+        try {
+            if (bundle != null) {
+                mPlaylistId = Long.parseLong(bundle.getString("playlist"));
+            }
+        } catch (NumberFormatException e) {
+            Log.w("MusicBrowserActivity", "Playlist id missing or broken");
+        }
         MusicUtils.updateGroupByFolder(this);
         init();
         initView();
@@ -137,7 +150,7 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
                         showScreen(position);
                         mNavigationAdapter.setClickPosition(position);
                         mDrawerListView.invalidateViews();
-                        mDrawerLayout.closeDrawer(Gravity.START);
+                        mDrawerLayout.closeDrawer(Gravity.LEFT);
                     }
                 });
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawerLayout);
@@ -147,7 +160,7 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
             @Override
             public void onClick(View v) {
                 MusicUtils.startSoundEffectActivity(MusicBrowserActivity.this);
-                mDrawerLayout.closeDrawer(Gravity.START);
+                mDrawerLayout.closeDrawer(Gravity.LEFT);
             }
         });
 
@@ -167,17 +180,22 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
                 return false;
             }
         });
+        mToolbar.setNavigationContentDescription("drawer");
         mToolbar.setNavigationOnClickListener(new OnClickListener() {
 
             @Override
             public void onClick(View v) {
-                mDrawerLayout.openDrawer(Gravity.START);
+                if (mToolbar.getNavigationContentDescription().equals("drawer")) {
+                    mDrawerLayout.openDrawer(Gravity.LEFT);
+                }else {
+                    showScreen(3);
+                    mToolbar.setNavigationContentDescription("drawer");
+                    mToolbar
+                    .setNavigationIcon(R.drawable.ic_material_light_navigation_drawer);
+                }
             }
         });
-        if(mMimeType != null && mMimeType.equalsIgnoreCase("vnd.android.cursor.dir/playlist"))
-        {
-            activeTab = 3;
-        }
+
         showScreen(activeTab);
     }
 
@@ -190,7 +208,7 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
             mAlbumID = getIntent().getStringExtra("album");
             initView();
         }
-        mMimeType = intent.getType();
+        mIntentAction = intent.getAction();
     }
 
     @Override
@@ -200,14 +218,18 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
         updateNowPlaying(this);
     }
 
-    private void showScreen(int position) {
-        if (position > 4) {
+    public void showScreen(int position) {
+        if (position > 5) {
             position = 0;
         }
+
         mNavigationAdapter.setClickPosition(position);
         mDrawerListView.invalidateViews();
         FragmentManager fragmentManager = getFragmentManager();
         Fragment fragment = null;
+        if (mPlaylistId != DEFAULT_PLAYLIST) {
+            position = 2;
+        }
         if (MusicUtils.isGroupByFolder()) {
             mToolbar.setTitle(getResources().getStringArray(
                     R.array.title_array_folder)[position]);
@@ -234,7 +256,30 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
             bundle.putBoolean("editValue", false);
             fragment.setArguments(bundle);
             mAlbumID = null;
-        } else {
+        } else if (mPlaylistId != DEFAULT_PLAYLIST) {
+            fragment = new TrackBrowserFragment();
+            Bundle bundle = new Bundle();
+            if (mPlaylistId == RECENTLY_ADDED_PLAYLIST) {
+                bundle.putString("playlist", "recentlyadded");
+            } else if (mPlaylistId == PODCASTS_PLAYLIST) {
+                bundle.putString("playlist", "podcasts");
+            } else {
+                bundle.putBoolean("editValue", true);
+                bundle.putString("playlist", Long.valueOf(mPlaylistId)
+                        .toString());
+            }
+            bundle.putBoolean("isFromShortcut", true);
+            fragment.setArguments(bundle);
+            mPlaylistId = DEFAULT_PLAYLIST;
+        } else if (mIntentAction != null
+                && mIntentAction
+                        .equalsIgnoreCase(Intent.ACTION_CREATE_SHORTCUT)) {
+            fragment = new PlaylistBrowserFragment();
+            Bundle bundle = new Bundle();
+            bundle.putBoolean("isFromShortcut", true);
+            fragment.setArguments(bundle);
+        }
+        else {
             fragment = FragmentsFactory.loadFragment(position);
         }
         if (!fragment.isAdded()) {
@@ -305,6 +350,7 @@ public class MusicBrowserActivity extends MediaPlaybackActivity implements
         public void onViewClosed(View view) {
             isPanelExpanded = false;
             MusicUtils.updateNowPlaying(mActivityInstance, isPanelExpanded);
+            mActivityInstance.closeQueuePanel();
         }
 
         @Override

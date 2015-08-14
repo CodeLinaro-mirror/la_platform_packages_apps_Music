@@ -287,8 +287,8 @@ public class MusicPanelLayout extends ViewGroup {
         if (getChildCount() == ZERO) {
             return;
         }
-        int rBound = getWidth() - getPaddingEnd();
-        int lBound = getPaddingStart();
+        int rBound = getWidth() - getPaddingRight();
+        int lBound = getPaddingLeft();
         int bBound = getHeight() - getPaddingBottom();
         int tBound = getPaddingTop();
 
@@ -376,7 +376,7 @@ public class MusicPanelLayout extends ViewGroup {
             mSlipState = BoardState.HIDDEN;
         }
 
-        int lWidth = wSize - getPaddingStart() - getPaddingEnd();
+        int lWidth = wSize - getPaddingLeft() - getPaddingRight();
         int lHeight = hSize - getPaddingTop() - getPaddingBottom();
 
         for (int k = 0; k < cCount; k++) {
@@ -441,7 +441,7 @@ public class MusicPanelLayout extends ViewGroup {
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         int pTop = getPaddingTop();
         int cCount = getChildCount();
-        int pLeft = getPaddingStart();
+        int pLeft = getPaddingLeft();
 
         if (mPrimaryLayout) {
             switch (mSlipState) {
@@ -615,8 +615,7 @@ public class MusicPanelLayout extends ViewGroup {
 
     public void setHookState(BoardState state) {
         if (state == null || state == BoardState.DRAGGING) {
-            throw new IllegalArgumentException(
-                    "Panel state cannot be null or DRAGGING.");
+           return;
         }
         if (!isEnabled() || (mPrimaryLayout && mSlippingView == null))
             return;
@@ -878,18 +877,18 @@ public class MusicPanelLayout extends ViewGroup {
                         }
                         sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
                     }
-                } else if (mSlipState != BoardState.ANCHORED) {
-                    refreshObscuredViewVisibility();
-                    mSlipState = BoardState.ANCHORED;
-                    if (mHookSlipListener != null) {
-                        mHookSlipListener.onViewMainLined(mSlippingView);
-                    }
-                    sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
                 } else if (mSlipOffset < 0) {
                     mSlipState = BoardState.HIDDEN;
                     mSlippingView.setVisibility(View.INVISIBLE);
                     if (mHookSlipListener != null) {
                         mHookSlipListener.onViewBackStacked(mSlippingView);
+                    }
+                    sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
+                } else if (mSlipState != BoardState.ANCHORED) {
+                    refreshObscuredViewVisibility();
+                    mSlipState = BoardState.ANCHORED;
+                    if (mHookSlipListener != null) {
+                        mHookSlipListener.onViewMainLined(mSlippingView);
                     }
                     sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
                 }

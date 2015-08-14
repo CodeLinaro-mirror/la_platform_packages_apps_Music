@@ -117,7 +117,7 @@ public class TrackBrowserFragment extends Fragment implements
     private String[] mCursorCols;
     private String[] mPlaylistMemberCols;
     private boolean mDeletedOneRow = false;
-    private static boolean mEditMode = false;
+    private boolean mEditMode = false;
     private String mCurrentTrackName;
     private String mCurrentAlbumName;
     private String mCurrentArtistNameForAlbum;
@@ -134,19 +134,20 @@ public class TrackBrowserFragment extends Fragment implements
     private String mRootPath;
     private int mSelectedPosition;
     private long mSelectedId;
-    private static int mLastListPosCourse = -1;
-    private static int mLastListPosFine = -1;
+    private int mLastListPosCourse = -1;
+    private int mLastListPosFine = -1;
     private boolean mUseLastListPos = false;
     private ServiceToken mToken;
     private SubMenu mSubMenu = null;
-    private static MediaPlaybackActivity mParentActivity;
+    private MediaPlaybackActivity mParentActivity;
     private TextView mSdErrorMessageView;
     private View mSdErrorMessageIcon;
     private RelativeLayout mShuffleLayout;
-    private static AnimationDrawable mCurrPlayAnimation;
-    private static ImageView mAnimView;
-    private static boolean mPause = false;
+    private AnimationDrawable mCurrPlayAnimation;
+    private ImageView mAnimView;
+    public boolean mPause = false;
     private String mFolderName;
+    private boolean mCreateShortcut = false;
 
     public TrackBrowserFragment() {
     }
@@ -162,6 +163,11 @@ public class TrackBrowserFragment extends Fragment implements
     public void onStop() {
         // TODO Auto-generated method stub
         super.onStop();
+        if (MusicUtils.isGroupByFolder() && mParent != -1) {
+            mParentActivity.mToolbar.setNavigationContentDescription("drawer");
+            mParentActivity.mToolbar
+                    .setNavigationIcon(R.drawable.ic_material_light_navigation_drawer);
+        }
     }
 
     @Override
@@ -184,27 +190,15 @@ public class TrackBrowserFragment extends Fragment implements
             }
         }
         mParentActivity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
-        if (icicle != null) {
-            mSelectedId = icicle.getLong("selectedtrack");
-            mAlbumId = icicle.getString("album");
-            mArtistId = icicle.getString("artist");
-            mPlaylist = icicle.getString("playlist");
-            mGenre = icicle.getString("genre");
+        if (getArguments() != null) {
+            mEditMode = getArguments().getBoolean("editValue");
+            mPlaylist = getArguments().getString("playlist");
+            mAlbumId = getArguments().getString("album");
+            mCreateShortcut = getArguments().getBoolean("isFromShortcut");
             if (MusicUtils.isGroupByFolder()) {
-                mParent = icicle.getInt("parent", -1);
-                mRootPath = icicle.getString("rootPath");
-            }
-            mEditMode = icicle.getBoolean("editmode", false);
-        } else {
-            mAlbumId = intent.getStringExtra("album");
-            // If we have an album, show everything on the album, not just stuff
-            // by a particular artist.
-            mArtistId = intent.getStringExtra("artist");
-            mPlaylist = intent.getStringExtra("playlist");
-            mGenre = intent.getStringExtra("genre");
-            if (MusicUtils.isGroupByFolder()) {
-                mParent = intent.getIntExtra("parent", -1);
-                mRootPath = intent.getStringExtra("rootPath");
+                mParent = getArguments().getInt("parent", -1);
+                mRootPath = getArguments().getString("rootPath");
+                mFolderName = getArguments().getString("folder_name");
             }
         }
 
@@ -222,6 +216,11 @@ public class TrackBrowserFragment extends Fragment implements
                 MediaStore.Audio.Playlists.Members.PLAY_ORDER,
                 MediaStore.Audio.Playlists.Members.AUDIO_ID,
                 MediaStore.Audio.Media.IS_MUSIC };
+        if (MusicUtils.isGroupByFolder() && mParent != -1) {
+            mParentActivity.mToolbar.setNavigationContentDescription("back");
+            mParentActivity.mToolbar
+                    .setNavigationIcon(R.drawable.ic_arrow_back_white_24dp);
+        }
     }
 
     @Override
@@ -236,17 +235,7 @@ public class TrackBrowserFragment extends Fragment implements
         mTrackList = (ListView) rootView.findViewById(R.id.list);
         mTrackList.setCacheColorHint(0);
         mTrackList.setDividerHeight(0);
-        if (getArguments() != null) {
-            mEditMode = getArguments().getBoolean("editValue");
-            mPlaylist = getArguments().getString("playlist");
-            mAlbumId = getArguments().getString("album");
-            if (MusicUtils.isGroupByFolder()) {
-                mParent = getArguments().getInt("parent", -1);
-                mRootPath = getArguments().getString("rootPath");
-                mFolderName = getArguments().getString("folder_name");
-            }
-        }
-        if (mEditMode || MusicUtils.isGroupByFolder()) {
+        if (mEditMode) {
             mShuffleLayout.setVisibility(View.GONE);
             ((TouchInterceptor) mTrackList).setDropListener(mDropListener);
             ((TouchInterceptor) mTrackList).setRemoveListener(mRemoveListener);
@@ -440,6 +429,10 @@ public class TrackBrowserFragment extends Fragment implements
             mTrackList.invalidateViews();
         }
         mPause = false;
+        if (!MusicUtils.isFragmentRemoved) {
+            MusicUtils.mPause = mPause;
+            MusicUtils.mEditMode = mEditMode;
+        }
         MusicUtils.setSpinnerState(mParentActivity);
         IntentFilter stateIntentfilter = new IntentFilter();
         stateIntentfilter.addAction(MediaPlaybackService.PLAYSTATE_CHANGED);
@@ -563,39 +556,11 @@ public class TrackBrowserFragment extends Fragment implements
         IntentFilter f = new IntentFilter();
         f.addAction(MediaPlaybackService.META_CHANGED);
         f.addAction(MediaPlaybackService.QUEUE_CHANGED);
-        if ("nowplaying".equals(mPlaylist)) {
-            try {
-                mShuffleLayout.setVisibility(View.GONE);
-                int cur = MusicUtils.sService.getQueuePosition();
-                mTrackList.setSelection(cur);
-                mParentActivity.registerReceiver(mNowPlayingListener,
-                        new IntentFilter(f));
-                mNowPlayingListener.onReceive(mParentActivity, new Intent(
-                        MediaPlaybackService.META_CHANGED));
-            } catch (RemoteException ex) {
-            }
-        } else {
-            String key = mParentActivity.getIntent().getStringExtra("artist");
-            if (key != null) {
-                int keyidx = mTrackCursor
-                        .getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST_ID);
-                mTrackCursor.moveToFirst();
-                while (!mTrackCursor.isAfterLast()) {
-                    String artist = mTrackCursor.getString(keyidx);
-                    if (artist.equals(key)) {
-                        mTrackList.setSelection(mTrackCursor.getPosition());
-                        break;
-                    }
-                    mTrackCursor.moveToNext();
-                }
-            }
             mParentActivity.registerReceiver(mTrackListListener,
                     new IntentFilter(f));
             mTrackListListener.onReceive(mParentActivity, new Intent(
                     MediaPlaybackService.META_CHANGED));
-        }
     }
-
     private void setAlbumArtBackground() {
         if (!mEditMode) {
             try {
@@ -700,11 +665,11 @@ public class TrackBrowserFragment extends Fragment implements
         if (fancyName != null) {
             if ("My recordings".equals(fancyName)) {
                 mParentActivity.setTitle(R.string.audio_db_playlist_name);
-            } else {
-                mParentActivity.setTitle(fancyName);
+            } else if (mCreateShortcut) {
+               mParentActivity.mToolbar.setTitle(fancyName);
             }
         } else {
-            if(MusicUtils.isGroupByFolder()){
+            if (MusicUtils.isGroupByFolder() && mFolderName != null) {
                 mParentActivity.mToolbar.setTitle(mFolderName);
             }else{
             mParentActivity.setTitle(R.string.tracks_title);
@@ -1020,13 +985,7 @@ public class TrackBrowserFragment extends Fragment implements
             long[] list = new long[1];
             list[0] = (int) mSelectedId;
             Bundle b = new Bundle();
-            String f;
-            String status = MusicUtils.getSDState(mParentActivity);
-            if (status.equals(android.os.Environment.MEDIA_MOUNTED)) {
-                f = getString(R.string.delete_song_desc);
-            } else {
-                f = getString(R.string.delete_song_desc_nosdcard);
-            }
+            String f = getString(R.string.delete_song_desc);
             String desc = String.format(f, mCurrentTrackName);
             b.putString("description", desc);
             b.putLongArray("items", list);
@@ -1051,8 +1010,8 @@ public class TrackBrowserFragment extends Fragment implements
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
             shareIntent.setType("audio/*");
             mTrackCursor.moveToPosition(mSelectedPosition);
-
-            if (mEditMode && (mPlaylist != null && !mPlaylist.equals("nowplaying"))) {
+            if (mEditMode
+                    && (mPlaylist != null && !mPlaylist.equals("nowplaying"))) {
                 id = mTrackCursor
                         .getLong(mTrackCursor
                                 .getColumnIndexOrThrow(MediaStore.Audio.Playlists.Members.AUDIO_ID));
@@ -1208,7 +1167,6 @@ public class TrackBrowserFragment extends Fragment implements
     public void onItemClick(AdapterView<?> parent, View view, int position,
             long id) {
 
-        ViewHolder vh = (ViewHolder) view.getTag();
         ((MediaPlaybackActivity) mParentActivity)
                 .updateNowPlaying(mParentActivity);
         if ((mTrackCursor == null) || (mTrackCursor.getCount() == 0)) {
@@ -1257,29 +1215,25 @@ public class TrackBrowserFragment extends Fragment implements
         if (mEditMode && mPlaylist != null && !mPlaylist.equals("nowplaying")) {
             MusicUtils.setPlayListId(Long.valueOf(mPlaylist));
         }
+
         MusicUtils.playAll(mParentActivity, mTrackCursor, position);
     }
 
-    private static void setCurrPlayAnimation(AnimationDrawable anim) {
+    private void setCurrPlayAnimation(AnimationDrawable anim) {
         stopAnimation();
         mCurrPlayAnimation = anim;
     }
 
-    private static void startAnimation() {
+    private void startAnimation() {
         mCurrPlayAnimation.start();
     }
 
-    private static void stopAnimation() {
+    private void stopAnimation() {
         if (mAnimView != null) {
             mAnimView.clearAnimation();
-            if (mPause) {
-                mAnimView.setBackgroundDrawable(null);
-            }
+        if (mPause) {
+            mAnimView.setBackgroundDrawable(null);
         }
-
-        if (mCurrPlayAnimation != null && mCurrPlayAnimation.isRunning()) {
-            mCurrPlayAnimation.stop();
-            mCurrPlayAnimation = null;
         }
     }
 
@@ -1861,7 +1815,7 @@ public class TrackBrowserFragment extends Fragment implements
             long aid = cursor.getLong(mAlbumIdx);
             final Drawable d = MusicUtils.getCachedArtwork(context, aid,
                     mDefaultAlbumIcon);
-            if (MusicUtils.isGroupByFolder() && !mEditMode) {
+            if (MusicUtils.isGroupByFolder() && !mEditMode && mParent != -1) {
                 long l = cursor.getLong(1);
                 if (vh.icon.getTag() != (Integer)vh.icon.getId()) {
                     new MusicUtils.FolderBitmapThread(mParentActivity, l,
@@ -1984,7 +1938,6 @@ public class TrackBrowserFragment extends Fragment implements
                 mAnimView.setVisibility(View.VISIBLE);
                 if (MusicUtils.isPlaying()) {
                     clearAnimation();
-
                     mAnimView.setBackgroundResource(R.drawable.animation_list);
                     vh.mMusicAnimation = (AnimationDrawable) mAnimView
                             .getBackground();
@@ -1995,7 +1948,6 @@ public class TrackBrowserFragment extends Fragment implements
                     mAnimView.setBackgroundDrawable(null);
                     mAnimView.setBackgroundResource(R.drawable.wave_stop);
                     mAnimView.clearAnimation();
-
                     if (vh.mMusicAnimation != null
                             && vh.mMusicAnimation.isRunning()) {
                         stopAnimation();
