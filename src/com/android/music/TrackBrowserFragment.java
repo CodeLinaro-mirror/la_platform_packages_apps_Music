@@ -1033,7 +1033,7 @@ public class TrackBrowserFragment extends Fragment implements
             Intent intent = new Intent();
             intent.setClass(mParentActivity, DeleteItems.class);
             intent.putExtras(b);
-            startActivityForResult(intent, DELETE_ITEM);
+            startActivityForResult(intent, -1);
             return true;
         }
 
@@ -1314,9 +1314,6 @@ public class TrackBrowserFragment extends Fragment implements
                     MusicUtils.addToPlaylist(mParentActivity, list, plid);
                 }
             }
-            break;
-        case DELETE_ITEM:
-            mTrackList.setAdapter(mTrackList.getAdapter());
             break;
         }
     }
