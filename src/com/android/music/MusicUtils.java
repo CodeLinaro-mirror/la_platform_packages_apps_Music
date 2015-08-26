@@ -31,6 +31,7 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.res.Resources;
 import android.database.Cursor;
+import android.drm.OmaDrmHelper;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -1278,6 +1279,16 @@ public class MusicUtils {
         ContentResolver resolver = context.getContentResolver();
         // Set the flag in the database to mark this as a ringtone
         Uri ringUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
+
+        // Only DRM FL file can be set as ringtone
+        String filePath = OmaDrmHelper.getFilePath(context, ringUri);
+        if (OmaDrmHelper.isDrmFile(filePath)
+                && !OmaDrmHelper.isDrmFLBlocking(context, filePath)) {
+            Toast.makeText(context, R.string.drm_ringtone_error,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         try {
             ContentValues values = new ContentValues(2);
             values.put(MediaStore.Audio.Media.IS_RINGTONE, "1");

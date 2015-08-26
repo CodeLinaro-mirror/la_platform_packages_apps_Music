@@ -153,7 +153,7 @@ public class AudioPreview extends Activity implements OnPreparedListener, OnErro
                         getIntent().getData());
                 if (OmaDrmHelper.isDrmFile(filepath)) {
                     if (!OmaDrmHelper.validateLicense(this,
-                            filepath, null, mDrmErrorDialogButtonListener,
+                            filepath, mUri, null, mDrmErrorDialogButtonListener,
                             mDrmErrorDialogButtonListener)) {
                         return;
                     }
@@ -498,7 +498,7 @@ public class AudioPreview extends Activity implements OnPreparedListener, OnErro
                     getIntent().getData());
             if (OmaDrmHelper.isDrmFile(filepath)) {
                 if (!OmaDrmHelper.validateLicense(this,
-                        filepath, null, mDrmErrorDialogButtonListener,
+                        filepath, mUri, null, mDrmErrorDialogButtonListener,
                         mDrmErrorDialogButtonListener)) {
                     return true;
                 }
@@ -642,7 +642,9 @@ public class AudioPreview extends Activity implements OnPreparedListener, OnErro
                 String mime = OmaDrmHelper.getOriginalMimeType(mActivity, path);
                 if (OmaDrmHelper.isDrmMidiFile(mActivity, path, mime)) {
                     path = OmaDrmHelper.getDrmMidiFilePath(mActivity, path,
-                            mActivity.getFilesDir().getAbsolutePath(), mime);
+                            uri, mime, mActivity.getFilesDir()
+                                    .getAbsolutePath(),
+                            OmaDrmHelper.MIDI_FILE_CACHE_AUDIOPREVIEW, true);
                     uri = Uri.fromFile(new File(path));
                 }
             }

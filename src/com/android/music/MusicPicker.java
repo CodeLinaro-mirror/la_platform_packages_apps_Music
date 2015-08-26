@@ -708,8 +708,9 @@ public class MusicPicker extends ListActivity
                 // Special treatment to play midi drm file
                 String mime = OmaDrmHelper.getOriginalMimeType(this, path);
                 if (OmaDrmHelper.isDrmMidiFile(this, path, mime)) {
-                    path = OmaDrmHelper.getDrmMidiFilePath(this, path, this
-                            .getFilesDir().getAbsolutePath(), mime);
+                    path = OmaDrmHelper.getDrmMidiFilePath(this, path, mime,
+                            this.getFilesDir().getAbsolutePath(),
+                            OmaDrmHelper.MIDI_FILE_CACHE_AUDIOPREVIEW);
                     mSelectedUri = Uri.fromFile(new File(path));
                 }
             }
