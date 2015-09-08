@@ -1729,11 +1729,6 @@ public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
                 Log.e(TAG, " service is null");
                 return;
             }
-            try {
-                mService.next();
-            } catch (RemoteException ex) {
-                Log.e(TAG, " remote exception in playing song");
-            }
         }
     }
 
