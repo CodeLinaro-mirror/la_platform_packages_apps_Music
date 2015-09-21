@@ -56,6 +56,7 @@ import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.telephony.TelephonyManager;
 import android.text.Layout;
+import android.text.TextUtils;
 import android.text.TextUtils.TruncateAt;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -87,6 +88,8 @@ import com.codeaurora.music.custom.FragmentsFactory;
 import com.codeaurora.music.custom.MusicPanelLayout;
 import com.codeaurora.music.custom.MusicPanelLayout.ViewHookSlipListener;
 import com.codeaurora.music.custom.MusicPanelLayout.BoardState;
+
+import java.util.Locale;
 
 public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
         ServiceConnection, OnCompletionListener {
@@ -170,15 +173,19 @@ public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
         mCurrentPlaylist = (ImageButton) findViewById(R.id.animViewcurrPlaylist);
         mCurrentPlaylist.setOnClickListener(mQueueListener);
         setTouchDelegate(mCurrentPlaylist);
+        boolean isRtl = TextUtils.getLayoutDirectionFromLocale(Locale.getDefault()) ==
+                            View.LAYOUT_DIRECTION_RTL;
         mPrevButton = (RepeatingImageButton) findViewById(R.id.previcon);
         mPrevButton.setOnClickListener(mPrevListener);
         mPrevButton.setRepeatListener(mRewListener, 260);
+        mPrevButton.setImageResource(isRtl ? R.drawable.nex : R.drawable.pre);
         mPauseButton = (ImageButton) findViewById(R.id.play_pause);
         mPauseButton.requestFocus();
         mPauseButton.setOnClickListener(mPauseListener);
         mNextButton = (RepeatingImageButton) findViewById(R.id.nexticon);
         mNextButton.setOnClickListener(mNextListener);
         mNextButton.setRepeatListener(mFfwdListener, 260);
+        mNextButton.setImageResource(isRtl ? R.drawable.pre : R.drawable.nex);
         seekmethod = 1;
         MusicPanelLayout.mSeekBarView = mProgress;
         MusicPanelLayout.mSongsQueueView = mQueueLayout;
