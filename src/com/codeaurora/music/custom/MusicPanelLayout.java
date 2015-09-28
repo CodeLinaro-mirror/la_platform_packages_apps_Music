@@ -623,11 +623,7 @@ public class MusicPanelLayout extends ViewGroup {
         if (mPrimaryLayout) {
             mSlipState = state;
         } else {
-            if (mSlipState == BoardState.HIDDEN) {
-                mSlippingView.setVisibility(View.VISIBLE);
-                requestLayout();
-            }
-            switch (state) {
+           switch (state) {
             case ANCHORED:
                 smoothSlipTo(mMainStayPoint, 0, false);
                 break;
@@ -726,7 +722,7 @@ public class MusicPanelLayout extends ViewGroup {
     }
 
     boolean smoothSlipTo(float slideOffset, int velocity, boolean hasFastScroll) {
-        if (!isEnabled()) {
+        if (!isEnabled() || mSlippingView.getVisibility() != VISIBLE) {
             return false;
         }
 
