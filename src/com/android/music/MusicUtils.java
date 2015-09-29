@@ -1052,6 +1052,12 @@ public class MusicUtils {
         }
     }
 
+    public static Drawable getsArtCachedDrawable(Context context, long artIndex) {
+        synchronized (sArtCache) {
+            return sArtCache.get(artIndex);
+        }
+    }
+
     public static Drawable getCachedArtwork(Context context, long artIndex,
             BitmapDrawable defaultArtwork) {
         Drawable d = null;
@@ -1691,6 +1697,53 @@ public class MusicUtils {
         activity.startActivityForResult(i, Defs.EFFECTS_PANEL);
     }
 
+
+    public static void loadSongsListDrawables(Context context, Cursor cursor, int from, int to,
+            android.os.Handler handler) {
+
+        BitmapDrawable defaultArtwork = (BitmapDrawable) context.getResources()
+                .getDrawable(R.drawable.unknown_artists);
+
+        if (cursor.moveToPosition(from)) {
+
+            do {
+
+                if (TrackBrowserFragment.isScrolling) {
+                    break;
+                }
+
+                from++;
+                int artIndex = cursor
+                        .getColumnIndex(MediaStore.Audio.Media.ALBUM_ID);
+                int mTitleIdx = cursor
+                        .getColumnIndex(MediaStore.Audio.Media.TITLE);
+                long index = cursor.getLong(artIndex);
+                final Bitmap icon = defaultArtwork.getBitmap();
+                int w = icon.getWidth();
+                int h = icon.getHeight();
+                Bitmap b = MusicUtils.getArtworkQuick(context, index, w, h);
+                if (b != null) {
+                    Drawable d = new FastBitmapDrawable(b);
+                    synchronized (sArtCache) {
+                        if (sArtCache.get(index) == null) {
+                            sArtCache.put(index, d);
+
+                            if (handler != null && !mIsScreenOff) {
+                                handler.sendEmptyMessage(0);
+                            }
+                        }
+                    }
+                }
+
+            } while (from <= to && cursor.moveToNext());
+
+            if (cursor != null && !cursor.isClosed()) {
+                cursor.close();
+            }
+        }
+
+    }
+
     public static void getAlbumArtsForArtist(Context context,
             BitmapDrawable mDefaultAlbumIcon, int from, int to,
             android.os.Handler handler) {
@@ -1824,7 +1877,7 @@ public class MusicUtils {
         int toPosition;
         int fromPosition;
         final int BUFFER_POS = 5;
-        Context ctx = null;;
+        Context ctx = null;
         Handler handler = null;
 
         public BitmapDownloadThread(Context ctx, Handler handler, int from,
@@ -1855,38 +1908,29 @@ public class MusicUtils {
 
     static class AlbumBitmapDownloadThread extends Thread {
 
+        int toPosition;
+        int fromPosition;
+        Context context = null;;
         Handler handler = null;
-        BitmapDrawable defaultArtwork;
-        private long artIndex;
-        ImageView img;
-        Activity context;
+        Cursor cursor;
 
-        public AlbumBitmapDownloadThread(Activity context,
-                long artIndex, BitmapDrawable defaultArtwork, ImageView img,
-                Handler handler) {
-            this.defaultArtwork = defaultArtwork;
-            this.artIndex = artIndex;
-            this.img = img;
-            this.handler = handler;
+        public AlbumBitmapDownloadThread(Context context, Cursor cursor,
+                Handler handler, int from, int to) {
+            this.toPosition = to;
+            this.fromPosition = from;
             this.context = context;
+            this.handler = handler;
+            this.cursor = cursor;
         }
 
         @Override
         public void run() {
             super.run();
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
-            final Drawable d = MusicUtils.getCachedArtwork(
-                    context.getBaseContext(), artIndex, defaultArtwork);
-            if (img != null && !mIsScreenOff) {
-                context.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        img.setImageDrawable(d);
-                    }
-                });
-            }
-        }
+            MusicUtils.loadSongsListDrawables(context, cursor, fromPosition, toPosition, handler);
+         }
     }
+
     static class FolderBitmapThread extends Thread {
 
         // Handler handler = null;

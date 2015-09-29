@@ -43,6 +43,7 @@ import android.content.res.Resources;
 import android.database.AbstractCursor;
 import android.database.CharArrayBuffer;
 import android.database.Cursor;
+import android.database.CursorWrapper;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.AnimationDrawable;
@@ -102,7 +103,7 @@ import java.util.HashMap;
 
 public class TrackBrowserFragment extends Fragment implements
         View.OnCreateContextMenuListener, MusicUtils.Defs, ServiceConnection,
-        OnItemClickListener {
+        OnItemClickListener, OnScrollListener {
     private static final int Q_SELECTED = CHILD_MENU_BASE;
     private static final int Q_ALL = CHILD_MENU_BASE + 1;
     private static final int SAVE_AS_PLAYLIST = CHILD_MENU_BASE + 2;
@@ -113,6 +114,7 @@ public class TrackBrowserFragment extends Fragment implements
     private static final int SHARE = CHILD_MENU_BASE + 7; // Menu to share audio
 
     private static final String LOGTAG = "TrackBrowser";
+    private final static int TOTAL_LIST_ITEMS = 10;
 
     private String[] mCursorCols;
     private String[] mPlaylistMemberCols;
@@ -148,6 +150,8 @@ public class TrackBrowserFragment extends Fragment implements
     public boolean mPause = false;
     private String mFolderName;
     private boolean mCreateShortcut = false;
+    public static volatile boolean isScrolling = false;
+    private int lastVisiblePos = 0;
 
     public TrackBrowserFragment() {
     }
@@ -264,6 +268,7 @@ public class TrackBrowserFragment extends Fragment implements
             }
         });
         mTrackList.setOnItemClickListener(this);
+        mTrackList.setOnScrollListener(this);
         ImageButton shuffleAll = (ImageButton) rootView
                 .findViewById(R.id.shuffleAll);
         shuffleAll.setOnClickListener(new OnClickListener() {
@@ -349,7 +354,12 @@ public class TrackBrowserFragment extends Fragment implements
                 getTrackCursor(mAdapter.getQueryHandler(), null, true);
             }
         }
+
         mParentActivity.updateNowPlaying(mParentActivity);
+
+        Cursor cursor = getTrackCursor(mAdapter.getQueryHandler(), null, false);
+        new MusicUtils.AlbumBitmapDownloadThread(getParentActivity(), cursor,handler,
+                lastVisiblePos, lastVisiblePos + TOTAL_LIST_ITEMS).start();
     }
 
     public void onServiceDisconnected(ComponentName name) {
@@ -425,6 +435,7 @@ public class TrackBrowserFragment extends Fragment implements
     @Override
     public void onResume() {
         super.onResume();
+
         if (mTrackCursor != null) {
             mTrackList.invalidateViews();
         }
@@ -438,10 +449,19 @@ public class TrackBrowserFragment extends Fragment implements
         stateIntentfilter.addAction(MediaPlaybackService.PLAYSTATE_CHANGED);
         mParentActivity.registerReceiver(mStatusListener, stateIntentfilter);
         mParentActivity.updateNowPlaying(mParentActivity);
+
+        if (mAdapter != null) {
+            Cursor cursor = getTrackCursor(mAdapter.getQueryHandler(), null,
+                    false);
+            new MusicUtils.AlbumBitmapDownloadThread(getParentActivity(),
+                    cursor, handler, lastVisiblePos, lastVisiblePos + TOTAL_LIST_ITEMS)
+                    .start();
+        }
     }
 
     @Override
     public void onPause() {
+        lastVisiblePos = mTrackList.getFirstVisiblePosition();
         mReScanHandler.removeCallbacksAndMessages(null);
         mParentActivity.unregisterReceiver(mStatusListener);
         mPause = true;
@@ -1821,9 +1841,13 @@ public class TrackBrowserFragment extends Fragment implements
                     vh.icon.setTag(vh.icon.getId());
                 }
             } else {
-                if (vh.icon.getTag() != (Integer)vh.icon.getId()) {
-                    new MusicUtils.AlbumBitmapDownloadThread(mParentActivity, aid,
-                            mDefaultAlbumIcon, vh.icon, null).start();
+                if (vh.icon.getTag() != (Integer) vh.icon.getId()) {
+                    Drawable drawable = MusicUtils.getsArtCachedDrawable(context, aid);
+                    if (drawable != null) {
+                        vh.icon.setImageDrawable(drawable);
+                    } else {
+                        vh.icon.setImageDrawable(mDefaultAlbumIcon);
+                    }
                     vh.icon.setTag(vh.icon.getId());
                 }
             }
@@ -2010,5 +2034,40 @@ public class TrackBrowserFragment extends Fragment implements
         public int getSectionForPosition(int position) {
             return 0;
         }
+    }
+
+    Handler handler = new Handler() {
+        public void handleMessage(Message msg) {
+            if (mAdapter != null) {
+                mAdapter.notifyDataSetChanged();
+            }
+        };
+    };
+
+    @Override
+    public void onScrollStateChanged(AbsListView view, int scrollState) {
+        switch (scrollState) {
+        case OnScrollListener.SCROLL_STATE_IDLE:
+            isScrolling = false;
+            int from = view.getFirstVisiblePosition();
+            int to = view.getLastVisiblePosition();
+            Cursor cursor = getTrackCursor(mAdapter.getQueryHandler(), null,
+                    false);
+            new MusicUtils.AlbumBitmapDownloadThread(getParentActivity(),
+                    cursor, handler, from, to).start();
+            break;
+        case OnScrollListener.SCROLL_STATE_TOUCH_SCROLL:
+            isScrolling = true;
+            break;
+        case OnScrollListener.SCROLL_STATE_FLING:
+            isScrolling = true;
+            break;
+        }
+    }
+
+    @Override
+    public void onScroll(AbsListView view, int firstVisibleItem,
+            int visibleItemCount, int totalItemCount) {
+        // TODO Auto-generated method stub
     }
 }
