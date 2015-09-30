@@ -123,6 +123,7 @@ public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
     private ImageButton mMenuOverFlow;
     private View mNowPlayingView;
     Fragment mFragment;
+    private boolean isBackPressed = false;
 
     public MediaPlaybackActivity() {
     }
@@ -948,7 +949,14 @@ public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
                 startActivity(intent);
                 return true;
             }
-            finish();
+            if (isBackPressed) {
+                isBackPressed = false;
+                finish();
+            }
+            return true;
+        } else if (event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            isBackPressed = true;
             return true;
         }
         return super.dispatchKeyEvent(event);
