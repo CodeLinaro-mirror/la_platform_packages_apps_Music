@@ -124,6 +124,7 @@ public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
     private View mNowPlayingView;
     Fragment mFragment;
     private boolean isBackPressed = false;
+    private boolean mCheckIfSeekRequired = false;
 
     public MediaPlaybackActivity() {
     }
@@ -426,12 +427,14 @@ public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
         public void onStartTrackingTouch(SeekBar bar) {
             mLastSeekEventTime = 0;
             mFromTouch = true;
+            mCheckIfSeekRequired = false;
         }
 
         public void onProgressChanged(SeekBar bar, int progress,
                 boolean fromuser) {
             if (!fromuser || (mService == null))
                 return;
+            mCheckIfSeekRequired = true;
             long now = SystemClock.elapsedRealtime();
             mPosOverride = mDuration * progress / 1000;
             if ((now - mLastSeekEventTime) > 10) {
@@ -447,7 +450,7 @@ public class MediaPlaybackActivity extends Activity implements MusicUtils.Defs,
 
         public void onStopTrackingTouch(SeekBar bar) {
             try {
-                if (null != mService) {
+                if (null != mService && mCheckIfSeekRequired) {
                     mService.seek(mPosOverride);
                 }
             } catch (RemoteException ex) {
