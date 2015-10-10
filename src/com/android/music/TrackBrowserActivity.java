@@ -739,7 +739,7 @@ public class TrackBrowserActivity extends ListActivity
             mSelectedId = mi.id;
         }
 
-        String path = OmaDrmHelper.getSelectAudioPath(getApplicationContext(), mSelectedId);
+        String path = OmaDrmHelper.getSelectedAudioPath(getApplicationContext(), mSelectedId);
         if (OmaDrmHelper.isDrmFile(path)) {
             menu.add(0, DRM_LICENSE_INFO, 0, R.string.drm_license_info);
         }
@@ -820,7 +820,7 @@ public class TrackBrowserActivity extends ListActivity
                 return true;
 
             case DRM_LICENSE_INFO:
-                String path = OmaDrmHelper.getSelectAudioPath(getApplicationContext(), mSelectedId);
+                String path = OmaDrmHelper.getSelectedAudioPath(getApplicationContext(), mSelectedId);
                 OmaDrmHelper.showDrmInfo(this, path);
                 return true;
 
@@ -997,7 +997,7 @@ public class TrackBrowserActivity extends ListActivity
         }
 
         // TODO
-        String path = OmaDrmHelper.getSelectAudioPath(TrackBrowserActivity.this, id);
+        String path = OmaDrmHelper.getSelectedAudioPath(TrackBrowserActivity.this, id);
         String mime = null;
         if (!OmaDrmHelper.validateLicense(TrackBrowserActivity.this, path, mime)) {
             // cannot play drm audio, which does not have license

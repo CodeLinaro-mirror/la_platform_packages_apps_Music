@@ -38,6 +38,7 @@ import android.content.res.Resources;
 import android.database.AbstractCursor;
 import android.database.CharArrayBuffer;
 import android.database.Cursor;
+import android.drm.OmaDrmHelper;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.BitmapFactory;
@@ -101,6 +102,7 @@ public class TrackBrowserActivityFragment extends Fragment
     private static final int REMOVE = CHILD_MENU_BASE + 5;
     private static final int SEARCH = CHILD_MENU_BASE + 6;
     private static final int SHARE = CHILD_MENU_BASE + 7; // Menu to share audio
+    private static final int DRM_LICENSE_INFO = CHILD_MENU_BASE + 8; // Menu to show DRM license
 
     private static final String LOGTAG = "TrackBrowser";
     static boolean mIsRepeatPlay = false;
@@ -882,6 +884,12 @@ public class TrackBrowserActivityFragment extends Fragment
             menu.getMenu().add(0, USE_AS_RINGTONE, 0, R.string.ringtone_menu);
         }
         menu.getMenu().add(0, SHARE, 0, R.string.share);
+
+        if (OmaDrmHelper.isDrmFile(OmaDrmHelper.getSelectedAudioPath(
+                mParentActivity, mSelectedId))) {
+            menu.getMenu().add(0, DRM_LICENSE_INFO, 0,
+                    R.string.drm_license_info);
+        }
     }
 
 
@@ -955,6 +963,15 @@ public class TrackBrowserActivityFragment extends Fragment
                 return true;
 
             case SHARE:
+                // FL/CD DRM files cannot be shared
+                String filePath = OmaDrmHelper.getSelectedAudioPath(
+                        mParentActivity, mSelectedId);
+                if (!OmaDrmHelper.isShareableDrmFile(filePath)) {
+                    Toast.makeText(mParentActivity, R.string.no_permission_for_drm,
+                            Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+
                 // Send intent to share audio
                 long id;
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
@@ -973,6 +990,11 @@ public class TrackBrowserActivityFragment extends Fragment
                 shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
                 startActivity(shareIntent);
                 return true;
+
+            case DRM_LICENSE_INFO:
+                // Show License DRM information
+                OmaDrmHelper.showDrmInfo(mParentActivity, OmaDrmHelper
+                        .getSelectedAudioPath(mParentActivity, mSelectedId));
         }
         return super.onContextItemSelected(item);
     }
@@ -1942,6 +1964,16 @@ public class TrackBrowserActivityFragment extends Fragment
     public void onItemClick(AdapterView<?> parent, View view, int position,
             long id) {
             // play the track
+        String filepath = OmaDrmHelper.getFilePath(mParentActivity,
+                mTrackCursor);
+        if (OmaDrmHelper.isDrmFile(filepath)) {
+            if (!OmaDrmHelper.validateLicense(mParentActivity, filepath, null,
+                    null, null)) {
+                Log.e(LOGTAG, "DRM audio license not available");
+                return;
+            }
+        }
+
          MusicUtils.playAll(mParentActivity, mTrackCursor, position);
          mAdapter.notifyDataSetChanged();
     }

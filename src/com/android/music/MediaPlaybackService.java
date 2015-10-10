@@ -1661,17 +1661,26 @@ public class MediaPlaybackService extends Service {
                 }
             }
 
-            if (OmaDrmHelper.isDrmFile(
-                    OmaDrmHelper.getFilePath(this, Uri.parse(path)))) {
+            String filePath = OmaDrmHelper.getFilePath(this, Uri.parse(path));
+            String drmMidiFilePath = null;
+            if (OmaDrmHelper.isDrmFile(filePath)) {
                 // Special treatment to play midi drm file
-                String mime = OmaDrmHelper.getOriginalMimeType(this, path);
-                if (OmaDrmHelper.isDrmMidiFile(this, path, mime)) {
-                    path = OmaDrmHelper.getDrmMidiFilePath(this, path, this
-                            .getFilesDir().getAbsolutePath(), mime);
+                String mime = OmaDrmHelper.getOriginalMimeType(this, filePath);
+                if (OmaDrmHelper.isDrmMidiFile(this, filePath, mime)) {
+                    drmMidiFilePath = OmaDrmHelper.getDrmMidiFilePath(this, filePath, mime,
+                            this.getFilesDir().getAbsolutePath(),
+                            OmaDrmHelper.MIDI_FILE_CACHE_PLAYBACK);
                 }
             }
-            mFileToPlay = path;
-            mPlayer.setDataSource(mFileToPlay);
+            if (drmMidiFilePath != null) {
+                // If playback if for Midi drm file, set cache path to play midi.
+                mFileToPlay = drmMidiFilePath;
+                mPlayer.setDataSource(mFileToPlay);
+            } else {
+                mFileToPlay = path;
+                mPlayer.setDataSource(mFileToPlay);
+            }
+
             if (mPlayer.isInitialized()) {
                 String realPath = getRealPathFromContentURI(this, Uri.parse(path));
                 if(realPath != null) {
