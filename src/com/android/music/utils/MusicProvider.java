@@ -16,10 +16,13 @@
 
 package com.android.music.utils;
 
+import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
+
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -88,6 +91,10 @@ public class MusicProvider {
 
     public boolean isInitialized() {
         return mCurrentState == State.INITIALIZED;
+    }
+
+    public boolean isInitializing() {
+        return mCurrentState == State.INITIALIZING;
     }
 
     /**
@@ -225,6 +232,9 @@ public class MusicProvider {
         new AsyncTask<Void, Void, State>() {
             @Override
             protected State doInBackground(Void... params) {
+                if (mCurrentState == State.INITIALIZED) {
+                    return mCurrentState;
+                }
                 mCurrentState = State.INITIALIZING;
                 if (retrieveMedia()) {
                     mCurrentState = State.INITIALIZED;
@@ -330,6 +340,11 @@ public class MusicProvider {
     }
 
     private synchronized boolean retrieveMedia() {
+        if (mContext.checkSelfPermission(READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+
         Cursor cursor =
                 mContext.getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                         null, MUSIC_SELECT_FILTER, null, MUSIC_SORT_ORDER);
@@ -379,7 +394,17 @@ public class MusicProvider {
             mContext.getContentResolver().delete(contentUri, null, null);
             return null;
         }
-        retriever.setDataSource(mContext, contentUri);
+
+        // fix: retrieve meta data fail case for broken music file
+        // ignore the music files which occur setDataSource exception
+        try {
+            retriever.setDataSource(mContext, contentUri);
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            retriever.release();
+            return null;
+        }
+
         String title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
         String album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM);
         String artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
